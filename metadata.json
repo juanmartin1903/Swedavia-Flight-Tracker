@@ -1,0 +1,6 @@
+{
+  "name": "Swedavia Flight Tracker",
+  "description": "Real-time aviation monitoring for Sweden's 10 major airports, featuring live flight tracking, OData filtering, and offline destination analytics.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
