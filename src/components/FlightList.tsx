@@ -39,9 +39,13 @@ export default function FlightList({ airport, viewMode }: FlightListProps) {
       const mappedFlights = rawFlights.map((f: any) => {
         const airline = f.airlineOperator?.name || f.airline?.name || 'N/A';
         const flightNumber = f.flightId || f.flightNumber || 'N/A';
-        const dest = f.arrivalAirportEnglish || f.arrivalAirport?.city || f.departureAirportEnglish || f.departureAirport?.city || 'N/A';
-        const time = f.departureTime?.scheduledUtc || f.departureTime?.scheduled || 
-                     f.arrivalTime?.scheduledUtc || f.arrivalTime?.scheduled || null;
+        const dest = flightType === 'departures' 
+          ? (f.arrivalAirportEnglish || f.arrivalAirport?.city || 'N/A')
+          : (f.departureAirportEnglish || f.departureAirport?.city || 'N/A');
+        
+        const time = flightType === 'departures'
+          ? (f.departureTime?.scheduledUtc || f.departureTime?.scheduled || null)
+          : (f.arrivalTime?.scheduledUtc || f.arrivalTime?.scheduled || null);
         const status = f.locationAndStatus?.flightLegStatusEnglish || f.status?.state || 'Scheduled';
         const gate = f.locationAndStatus?.gate || f.location?.gate || 'TBD';
 
@@ -82,7 +86,9 @@ export default function FlightList({ airport, viewMode }: FlightListProps) {
                          s.includes('board') ||
                          s.includes('onboard') ||
                          s.includes('sch') ||
-                         s.includes('time');
+                         s.includes('time') ||
+                         s.includes('land') ||
+                         s.includes('bag');
       
       if (!isRelevant) return false;
 
@@ -90,10 +96,11 @@ export default function FlightList({ airport, viewMode }: FlightListProps) {
       if (f.departureTime) {
         const flightDate = new Date(f.departureTime);
         const now = new Date();
-        const fifteenMinsAgo = new Date(now.getTime() - 15 * 60 * 1000);
+        const thirtyMinsAgo = new Date(now.getTime() - 30 * 60 * 1000);
         const twoHoursAgo = new Date(now.getTime() - 2 * 60 * 60 * 1000);
         
-        if (!showHistory && flightDate < fifteenMinsAgo) return false;
+        // Allow a slightly larger window for recently landed/arrived flights before hiding them
+        if (!showHistory && flightDate < thirtyMinsAgo) return false;
         if (showHistory && flightDate < twoHoursAgo) return false;
       }
 
@@ -263,7 +270,7 @@ function getStatusColor(status: string) {
   if (s.includes('board') || s.includes('onboard') || s.includes('gate open') || s.includes('sch') || s.includes('time')) return 'bg-emerald-50 text-emerald-600';
   if (s.includes('late') || s.includes('delay')) return 'bg-amber-50 text-amber-600';
   if (s.includes('canc')) return 'bg-rose-50 text-rose-600';
-  if (s.includes('dep') || s.includes('arr') || s.includes('landed')) return 'bg-blue-50 text-blue-600';
+  if (s.includes('dep') || s.includes('arr') || s.includes('land') || s.includes('bag')) return 'bg-blue-50 text-blue-600';
   return 'bg-slate-50 text-slate-500';
 }
 
@@ -272,17 +279,29 @@ function getStatusDotColor(status: string) {
   if (s.includes('board') || s.includes('onboard') || s.includes('sch') || s.includes('time')) return 'bg-emerald-400';
   if (s.includes('late') || s.includes('delay')) return 'bg-amber-400';
   if (s.includes('canc')) return 'bg-rose-400';
-  if (s.includes('dep') || s.includes('arr')) return 'bg-blue-400';
+  if (s.includes('dep') || s.includes('arr') || s.includes('land') || s.includes('bag')) return 'bg-blue-400';
   return 'bg-slate-400';
 }
 
 function generateMockFlights(airport: string, type: 'arrivals' | 'departures'): Flight[] {
-  const suffix = type === 'arrivals' ? ' (Arr)' : '';
+  const isArr = type === 'arrivals';
+  const suffix = isArr ? ' (Arr)' : '';
+  
+  if (isArr) {
+    return [
+      { flightId: 'a1', flightNumber: 'SK1421', airline: 'SAS', destination: 'Stockholm', status: 'Landed', gate: '12', airport, departureTime: new Date(Date.now() - 1200000).toISOString() },
+      { flightId: 'a2', flightNumber: 'DY4411', airline: 'Norwegian', destination: 'Oslo', status: 'Arrived', gate: '04', airport, departureTime: new Date(Date.now() - 2400000).toISOString() },
+      { flightId: 'a3', flightNumber: 'LH2414', airline: 'Lufthansa', destination: 'Frankfurt', status: 'Delayed', gate: 'B2', airport, departureTime: new Date(Date.now() + 600000).toISOString() },
+      { flightId: 'a4', flightNumber: 'FR123', airline: 'Ryanair', destination: 'London Stansted', status: 'Scheduled', gate: '22', airport, departureTime: new Date(Date.now() + 3600000).toISOString() },
+      { flightId: 'a5', flightNumber: 'AF1062', airline: 'Air France', destination: 'Paris CDG', status: 'Baggage Claim', gate: '19', airport, departureTime: new Date(Date.now() - 900000).toISOString() },
+    ];
+  }
+
   return [
-    { flightId: 'm1', flightNumber: 'SK1422', airline: 'SAS', destination: 'Stockholm' + suffix, status: 'On Time', gate: '12', airport, departureTime: new Date().toISOString() },
-    { flightId: 'm2', flightNumber: 'DY4412', airline: 'Norwegian', destination: 'Oslo' + suffix, status: 'Delayed', gate: '04', airport, departureTime: new Date(Date.now() + 1800000).toISOString() },
-    { flightId: 'm3', flightNumber: 'LH2415', airline: 'Lufthansa', destination: 'Frankfurt' + suffix, status: 'Scheduled', gate: 'B2', airport, departureTime: new Date(Date.now() + 3600000).toISOString() },
-    { flightId: 'm4', flightNumber: 'FR124', airline: 'Ryanair', destination: 'London Stansted' + suffix, status: 'Expected', gate: '22', airport, departureTime: new Date(Date.now() + 7200000).toISOString() },
-    { flightId: 'm5', flightNumber: 'AF1063', airline: 'Air France', destination: 'Paris CDG' + suffix, status: 'Gate Closed', gate: '19', airport, departureTime: new Date(Date.now() - 600000).toISOString() },
+    { flightId: 'm1', flightNumber: 'SK1422', airline: 'SAS', destination: 'Stockholm', status: 'On Time', gate: '12', airport, departureTime: new Date().toISOString() },
+    { flightId: 'm2', flightNumber: 'DY4412', airline: 'Norwegian', destination: 'Oslo', status: 'Delayed', gate: '04', airport, departureTime: new Date(Date.now() + 1800000).toISOString() },
+    { flightId: 'm3', flightNumber: 'LH2415', airline: 'Lufthansa', destination: 'Frankfurt', status: 'Scheduled', gate: 'B2', airport, departureTime: new Date(Date.now() + 3600000).toISOString() },
+    { flightId: 'm4', flightNumber: 'FR124', airline: 'Ryanair', destination: 'London Stansted', status: 'Expected', gate: '22', airport, departureTime: new Date(Date.now() + 7200000).toISOString() },
+    { flightId: 'm5', flightNumber: 'AF1063', airline: 'Air France', destination: 'Paris CDG', status: 'Gate Closed', gate: '19', airport, departureTime: new Date(Date.now() - 600000).toISOString() },
   ];
 }
