@@ -12,6 +12,7 @@ import DestinationOverview from './components/DestinationOverview';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<'flights' | 'destinations'>('flights');
+  const [viewMode, setViewMode] = useState<'cards' | 'tags'>('cards');
   const [selectedAirport, setSelectedAirport] = useState<Airport>(SWEDAVIA_AIRPORTS[0]);
   const [healthStatus, setHealthStatus] = useState<{ status: string; apiConfigured: boolean } | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -101,6 +102,21 @@ export default function App() {
           </div>
 
           <div className="flex items-center gap-4">
+             <div className="flex bg-slate-100 p-1 rounded-xl border border-slate-200">
+               <button 
+                 onClick={() => setViewMode('cards')}
+                 className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${viewMode === 'cards' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-500 hover:text-slate-700'}`}
+               >
+                 Cards
+               </button>
+               <button 
+                 onClick={() => setViewMode('tags')}
+                 className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${viewMode === 'tags' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-500 hover:text-slate-700'}`}
+               >
+                 Nametags
+               </button>
+             </div>
+
              {!healthStatus?.apiConfigured && (
                <div className="flex items-center gap-2 text-amber-600 bg-amber-50 px-4 py-2 rounded-xl text-xs font-semibold border border-amber-100">
                  <AlertCircle size={14} />
@@ -121,9 +137,9 @@ export default function App() {
               transition={{ duration: 0.2 }}
             >
               {activeTab === 'flights' ? (
-                <FlightList airport={selectedAirport} />
+                <FlightList airport={selectedAirport} viewMode={viewMode} />
               ) : (
-                <DestinationOverview />
+                <DestinationOverview viewMode={viewMode} />
               )}
             </motion.div>
           </AnimatePresence>

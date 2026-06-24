@@ -22,9 +22,9 @@ async function startServer() {
   });
 
   // Swedavia Proxy (FR-02, FR-03, FR-08)
-  app.get("/api/flights/:airport", async (req, res) => {
-    const { airport } = req.params;
-    const { odata } = req.query; // Capture arbitrary OData strings (FR-03)
+  app.get("/api/flights/:airport/:type", async (req, res) => {
+    const { airport, type } = req.params; // type is 'arrivals' or 'departures'
+    const { odata } = req.query; 
     const apiKey = process.env.SWEDAVIA_API_KEY;
 
     if (!apiKey) {
@@ -32,34 +32,65 @@ async function startServer() {
     }
 
     try {
-      // Swedavia FlightInfo API v2 URL pattern
-      // Example: https://api.swedavia.se/flightinfo/v2/{airport}/departures
-      const baseUrl = `https://api.swedavia.se/flightinfo/v2/${airport}/departures`;
-      const url = odata ? `${baseUrl}?${odata}` : baseUrl;
+      const swedenDate = new Date().toLocaleDateString('sv-SE', { timeZone: 'Europe/Stockholm' });
+      
+      // Prioritize the pattern from the documentation provided by the user
+      const patterns = [
+        `https://api.swedavia.se/flightinfo/v2/${airport}/${type}/${swedenDate}`,
+        `https://api.swedavia.se/flightinfo/v2/flights/${type}/${airport}/${swedenDate}`,
+        `https://api.swedavia.se/flightinfo/v2/flights/${airport}/${type}/${swedenDate}`,
+        `https://api.swedavia.se/flightinfo/v2/${airport}/${type}`,
+        `https://api.swedavia.se/flightinfo/v2/flights/${type}/${airport}`
+      ];
 
-      const response = await fetch(url, {
-        headers: {
-          "Accept": "application/json",
-          "Ocp-Apim-Subscription-Key": apiKey
-        },
-        // FR-07: Network Latency Mitigation (Timeout)
-        signal: AbortSignal.timeout(10000) 
-      });
+      let lastError: any = null;
+      console.log(`[Swedavia Proxy] Request: ${airport} ${type} on ${swedenDate}`);
 
-      if (!response.ok) {
-        return res.status(response.status).json({ error: `Swedavia API responded with ${response.status}` });
+      for (const baseUrl of patterns) {
+        const url = odata ? `${baseUrl}?${odata}` : baseUrl;
+        console.log(`[Swedavia Proxy] Trying: ${url}`);
+
+        try {
+          const response = await fetch(url, {
+            headers: {
+              "Accept": "application/json",
+              "Ocp-Apim-Subscription-Key": apiKey
+            },
+            signal: AbortSignal.timeout(8000) 
+          });
+
+          const status = response.status;
+          if (response.ok) {
+            const data = await response.json();
+            console.log(`[Swedavia Proxy] SUCCESS: ${url}`);
+            return res.json(data);
+          }
+
+          if (status !== 404 && status !== 401) {
+            const errorText = await response.text();
+            lastError = { status, errorText, url };
+          } else {
+            lastError = { status, url };
+          }
+        } catch (err: any) {
+          lastError = { error: err.message, url };
+        }
       }
 
-      const data = await response.json();
-      res.json(data);
+      return res.status(404).json({ 
+        error: "Flight resource not found", 
+        details: lastError 
+      });
     } catch (error: any) {
-      console.error("Proxy error:", error);
-      res.status(500).json({ error: error.message || "Failed to fetch flight data" });
+      res.status(500).json({ error: error.message });
     }
   });
 
   // Vite middleware for development
-  if (process.env.NODE_ENV !== "production") {
+  const isProd = process.env.NODE_ENV === "production";
+  console.log(`Starting server in ${isProd ? 'production' : 'development'} mode (NODE_ENV: ${process.env.NODE_ENV})`);
+
+  if (!isProd) {
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: "spa",

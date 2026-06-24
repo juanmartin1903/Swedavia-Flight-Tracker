@@ -28,10 +28,10 @@ export const SWEDAVIA_AIRPORTS: Airport[] = [
   { iata: 'GOT', name: 'Göteborg Landvetter', location: 'Gothenburg' },
   { iata: 'BMA', name: 'Stockholm Bromma', location: 'Stockholm' },
   { iata: 'MMX', name: 'Malmö Airport', location: 'Malmö' },
-  { iata: 'LPI', name: 'Linköping City', location: 'Linköping' },
-  { iata: 'UME', name: 'Umeå Airport', location: 'Umeå' },
   { iata: 'LLA', name: 'Luleå Airport', location: 'Luleå' },
+  { iata: 'UME', name: 'Umeå Airport', location: 'Umeå' },
+  { iata: 'OSD', name: 'Åre Östersund', location: 'Östersund' },
   { iata: 'VBY', name: 'Visby Airport', location: 'Visby' },
   { iata: 'RNB', name: 'Ronneby Airport', location: 'Ronneby' },
-  { iata: 'KLR', name: 'Kalmar Öland', location: 'Kalmar' },
+  { iata: 'KRN', name: 'Kiruna Airport', location: 'Kiruna' },
 ];
